@@ -1,5 +1,6 @@
 use crate::error::EngineError;
-use interprete_tanques::tank_status::TankStatus;
+use console_error_panic_hook;
+use interprete_tanques::tank_status::{Position, TankStatus};
 use interprete_tanques::Interpreter;
 use wasm_bindgen::prelude::*;
 
@@ -9,14 +10,49 @@ pub struct TanquesEngine {
 }
 
 #[derive(Clone)]
-#[wasm_bindgen]
+#[wasm_bindgen(inspectable)]
 pub struct GameStatus {
     tanks_status: Vec<TankStatus>,
 }
 
+#[wasm_bindgen]
 impl GameStatus {
-    pub fn set_tanks_status(&mut self, new_status: Vec<TankStatus>) {
-        self.tanks_status = new_status;
+    pub fn set_tank_status(&mut self, status: TankStatus, idx: usize) {
+        self.tanks_status[idx] = status;
+    }
+
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        console_error_panic_hook::set_once();
+        Self {
+            tanks_status: vec![TankStatus::default(); 4],
+        }
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn get_tanks_status_0(&self) -> TankStatus {
+        self.tanks_status[0]
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn get_tanks_status_1(&self) -> TankStatus {
+        self.tanks_status[1]
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn get_tanks_status_2(&self) -> TankStatus {
+        self.tanks_status[2]
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn get_tanks_status_3(&self) -> TankStatus {
+        self.tanks_status[3]
+    }
+}
+
+impl Default for GameStatus {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -137,7 +173,10 @@ impl TanquesEngine {
             }
         }
 
-        new_game_status.set_tanks_status(new_status);
+        new_game_status.set_tank_status(new_status[0], 0);
+        new_game_status.set_tank_status(new_status[1], 1);
+        new_game_status.set_tank_status(new_status[2], 2);
+        new_game_status.set_tank_status(new_status[3], 3);
 
         Ok(new_game_status)
     }
@@ -149,12 +188,30 @@ pub struct EngineApi {
 }
 
 #[wasm_bindgen]
-pub struct ApiInitWrapper(Vec<&'static str>);
+pub struct ApiInitWrapper {
+    programs: Vec<&'static str>,
+}
+
+#[wasm_bindgen]
+impl ApiInitWrapper {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        Self {
+            programs: vec![
+                "var x = 4; mientras ( x > 0 ){ si( radar == 0 ){ gira derecha; }otro{ avanza; }}",
+                "var y = 10;",
+                "var z = 3;",
+                "var w = 0;",
+            ],
+        }
+    }
+}
 
 #[wasm_bindgen]
 impl EngineApi {
+    #[wasm_bindgen(constructor)]
     pub fn new(progs: ApiInitWrapper) -> Result<EngineApi, String> {
-        let progs = progs.0;
+        let progs = progs.programs;
         let inner_engine = TanquesEngine::new(progs).map_err(|e| format!("{e}"))?;
         Ok(EngineApi { inner_engine })
     }
